@@ -15,7 +15,7 @@ class ArxivAuthorsCommunityExpansion():
 		self.dataset = dataset
 		self.dbName = dbName
 		self.g = None
-		self.partition = None
+		self.partition = collections.defaultdict(list)
 
 	def computeClusteringEdges(self, mpInput):
 
@@ -72,10 +72,16 @@ class ArxivAuthorsCommunityExpansion():
 					candidateEdges = [] # the edges resulting by uniting nodes in the same cluster, from different partitions
 					# not all candidate edges make it into the final configuration
 
+					oldPartitionIds = {}
+
 					for pair in combinations(nodesToCombine, 2):
 						if ((pair[0], pair[1]) not in edges and (pair[1], pair[0])):
 							helperG.add_edge(helperG.vs[pair[0]]['name'], helperG.vs[pair[1]]['name'], weight = 1)
 							candidateEdges.append((helperG.vs[pair[0]]['name'], helperG.vs[pair[1]]['name']))
+
+							# now both adjacent nodes will belong to the same partition
+							oldPartitionIds[pair[0]] = helperG.vs[pair[0]]['partitionId']
+							helperG.vs[pair[0]]['partitionId'] = helperG.vs[pair[1]]['partitionId']
 
 					newModularity = helperG.modularity(helperG.vs['partitionId'], weights = helperG.es['weight'])
 
@@ -87,6 +93,8 @@ class ArxivAuthorsCommunityExpansion():
 					else:
 						# if new configuration does not bring any benefit, drop it
 						helperG.delete_edges(candidateEdges)
+						for nodeId in oldPartitionIds:
+							helperG.vs[nodeId]['partitionId'] = oldPartitionIds[nodeId]
 
 		clusteringWeights = [1] * (len(clusteringEdges) - 1) 
 
@@ -168,7 +176,7 @@ class ArxivAuthorsCommunityExpansion():
 		for nodeId in [node.index for node in helperG.vs]:
 			self.g.vs[nodeId]['partitionId'] = helperG.vs[nodeId]['partitionId']
 
-		self.partition = helperPartition
+		self.partition = VertexClustering(self.g, self.g.vs['partitionId'])
 
 	def evaluateGraph(self):
 
