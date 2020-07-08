@@ -84,6 +84,8 @@ class ArxivAuthorsCommunityExpansion():
 		updatedPartitions = {}
 		isChange = True;
 
+		maxModularity = helperG.modularity(helperG.vs['partitionId'], weights = helperG.es['weight'])
+
 		while (isChange == True):
 
 			isChange = False
@@ -92,8 +94,6 @@ class ArxivAuthorsCommunityExpansion():
 			maxPartition2 = None
 
 			maxClusteringEdges = []
-
-			maxModularity = helperG.modularity(helperG.vs['partitionId'], weights = helperG.es['weight'])
 
 			for partitionId1 in list(legitPartitions):
 
@@ -121,7 +121,8 @@ class ArxivAuthorsCommunityExpansion():
 							maxPartition1 = partitionId1
 							maxPartition2 = partitionId2
 
-						helperG.delete_edges((helperG.vs[nodeId1]['name'], helperG.vs[nodeId2]['name']))
+						helperG.delete_edges([(helperG.vs[nodeId1]['name'], helperG.vs[nodeId2]['name'])])
+						
 						# UNmerge partitions
 						for nodeId in legitPartitions[partitionId2]:
 							helperG.vs[nodeId]['partitionId'] = partitionId2
@@ -130,6 +131,8 @@ class ArxivAuthorsCommunityExpansion():
 				print('MAX MOD = ', maxModularity)
 				isChange = True
 				clusteringEdges += maxClusteringEdges
+				for edge in maxClusteringEdges:
+					helperG.add_edge(edge[0], edge[1], weight = 1)
 				for nodeId in legitPartitions[maxPartition2]:
 					updatedPartitions[nodeId] = maxPartition1
 				legitPartitions[maxPartition1] += legitPartitions[maxPartition2]
