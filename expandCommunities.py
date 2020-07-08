@@ -7,6 +7,8 @@ import collections
 import matplotlib.pyplot as plt
 import multiprocessing as mp
 from evaluation import ArxivAuthorsEvaluation
+import copy
+from random import randint
 
 class ArxivAuthorsCommunityExpansion():
 
@@ -17,10 +19,12 @@ class ArxivAuthorsCommunityExpansion():
 		self.g = None
 		self.partition = collections.defaultdict(list)
 
+
 	def computeClusteringEdges(self, mpInput):
 
 		authorsInSameCluster = mpInput[0]
 		helperG = mpInput[1]
+		clusterId = mpInput[2]
 		
 		clusteringEdges = []
 		clusteringWeights = []
@@ -28,11 +32,11 @@ class ArxivAuthorsCommunityExpansion():
 		edges = [edge.tuple for edge in helperG.es]
 
 		partitions2nodes = collections.defaultdict(list)
+		nodeIds2clusters = {}
 
 		for node in helperG.vs:
 			partitions2nodes[node['partitionId']].append(node.index)
-
-		oldModularity = helperG.modularity(helperG.vs['partitionId'], weights = helperG.es['weight'])
+			nodeIds2clusters[node.index] = node['clusterId']
 
 		# intra partitions augumented edges
 		'''
@@ -40,57 +44,88 @@ class ArxivAuthorsCommunityExpansion():
 		which belong to the same cluster (determined by clustering the articles using the Spherical K-Means algorithm)
 		'''
 		for partitionId in partitions2nodes:
+			
 			nodesSameClusterPerPartition = list(set([author['nodeId'] for author in authorsInSameCluster]) & set(partitions2nodes[partitionId]))
 
 			if (len(nodesSameClusterPerPartition) > 1):
 				for pair in combinations(nodesSameClusterPerPartition, 2):
 					if ((pair[0], pair[1]) not in edges and (pair[1], pair[0]) not in edges):
-						helperG.add_edge(helperG.vs[pair[0]], helperG.vs[pair[1]], weight = 1)
 						clusteringEdges.append((helperG.vs[pair[0]]['name'], helperG.vs[pair[1]]['name']))
-			
-			newModularity = helperG.modularity(helperG.vs['partitionId'], weights = helperG.es['weight'])
+
+		helperG.add_edges(clusteringEdges)
+		helperG.es[len(edges):]['weight'] = [1] * len(clusteringEdges)
 
 		edges = [edge.tuple for edge in helperG.es]
 
+		# sort the partition dictionary ascending by size
+		partitions2nodes = {k: v for k, v in sorted(partitions2nodes.items(), key = lambda item: len(item[1]))}
+		partitions2nodes = {k: v for k, v in sorted(partitions2nodes.items(), key = lambda item: item[0])}
+
+		updatedPartitions = {}
+
+		# filter partitions
+		# only partitions which contain all nodes from this cluster
+
+		legitPartitions = {}
+
+		for partitionId in partitions2nodes:
+			nodesSameClusterInPartition = list(set([author['nodeId'] for author in authorsInSameCluster]) & set(partitions2nodes[partitionId]))
+			if (len(nodesSameClusterInPartition) != len(partitions2nodes[partitionId])):
+				continue
+			legitPartitions[partitionId] = partitions2nodes[partitionId]
+
+		oldModularity = helperG.modularity(helperG.vs['partitionId'], weights = helperG.es['weight'])
+		
 		# inter partitions
 		'''
 		We augument the inter partition edges by uniting the nodes FROM DIFFERENT PARTITIONS
 		which belong to the same cluster (determined by clustering the articles using the Spherical K-Means algorithm)
 		We only keep the partition unions which maximize the modularity
 		'''
-		for partitionId1 in partitions2nodes:
-			
-			nodesSameClusterInPartition1 = list(set([author['nodeId'] for author in authorsInSameCluster]) & set(partitions2nodes[partitionId1]))
+		for partitionId1 in list(legitPartitions):
 
-			for partitionId2 in partitions2nodes:
+			if (partitionId1 not in legitPartitions):
+				continue
+
+
+			for partitionId2 in list(legitPartitions):
 				
-				if (partitionId1 < partitionId2):
+				if (partitionId1 < partitionId2 and partitionId2 in legitPartitions):
 
-					nodesSameClusterInPartition2 = list(set([author['nodeId'] for author in authorsInSameCluster]) & set(partitions2nodes[partitionId2]))
-					nodesToCombine = nodesSameClusterInPartition1 + nodesSameClusterInPartition2
-					
+					# merge partitions
+					for nodeId in legitPartitions[partitionId2]:
+						helperG.vs[nodeId]['partitionId'] = partitionId1
+						updatedPartitions[nodeId] = partitionId1
+
+					nodeId1 = legitPartitions[partitionId1][randint(0, len(legitPartitions[partitionId1]) - 1)]
+					nodeId2 = legitPartitions[partitionId2][randint(0, len(legitPartitions[partitionId2]) - 1)]
+
 					candidateEdges = [] # the edges resulting by uniting nodes in the same cluster, from different partitions
 					# not all candidate edges make it into the final configuration
-
-					for pair in combinations(nodesToCombine, 2):
-						if ((pair[0], pair[1]) not in edges and (pair[1], pair[0])):
-							helperG.add_edge(helperG.vs[pair[0]]['name'], helperG.vs[pair[1]]['name'], weight = 1)
-							candidateEdges.append((helperG.vs[pair[0]]['name'], helperG.vs[pair[1]]['name']))
+					
+					candidateEdges.append((helperG.vs[nodeId1]['name'], helperG.vs[nodeId2]['name']))
+					helperG.add_edge(helperG.vs[nodeId1]['name'], helperG.vs[nodeId2]['name'], weight = 1)
 
 					newModularity = helperG.modularity(helperG.vs['partitionId'], weights = helperG.es['weight'])
 
-					# if new configuration maximizes modularity, keep it
 					if (newModularity > oldModularity):
-						print('newModularity = ' + str(newModularity))
+						legitPartitions[partitionId1] += legitPartitions[partitionId2]
+						del legitPartitions[partitionId2]
 						oldModularity = newModularity
 						clusteringEdges += candidateEdges
 					else:
-						# if new configuration does not bring any benefit, drop it
 						helperG.delete_edges(candidateEdges)
+						# UNmerge partitions
+						for nodeId in legitPartitions[partitionId2]:
+							helperG.vs[nodeId]['partitionId'] = partitionId2
+							del updatedPartitions[nodeId]
+
+
+		# print('CLUSTER ID ', clusterId, updatedPartitions)
 
 		clusteringWeights = [1] * (len(clusteringEdges) - 1) 
 
-		return (clusteringEdges, clusteringWeights)
+		return (clusteringEdges, clusteringWeights, updatedPartitions)
 
 	def buildGraph(self):
 
@@ -103,7 +138,7 @@ class ArxivAuthorsCommunityExpansion():
 		db = client[self.dbName]
 		documents = db[self.dataset]
 
-		cursor = documents.find({},{'authors': 1, 'clusterId': 1})
+		cursor = documents.find({},{'authors': 1, 'clusterId': 1}).limit(100)
 
 		vertices = []
 		edges = []
@@ -115,9 +150,9 @@ class ArxivAuthorsCommunityExpansion():
 
 		for c in cursor:
 			for author in c['authors']:
-				vertices.append(author)
+				if (author not in vertices):
+					vertices.append(author)
 				clusterIds.append(c['clusterId'])
-				clusterIds2nodeIds[c['clusterId']].append({'author': author, 'nodeId': nodeIdx})
 				nodeIdx += 1
 
 			for pair in combinations(c['authors'], 2):
@@ -132,6 +167,9 @@ class ArxivAuthorsCommunityExpansion():
 		helperG.add_edges(edges)
 		helperG.es['weight'] = weights
 		helperG.vs['clusterId'] = clusterIds
+
+		for node in helperG.vs:
+			clusterIds2nodeIds[node['clusterId']].append({'author': node['name'], 'nodeId': node.index})
 
 		helperPartition = louvain.find_partition(helperG, louvain.ModularityVertexPartition)
 
@@ -151,13 +189,16 @@ class ArxivAuthorsCommunityExpansion():
 		# for each cluster in paralel
 		pool = mp.Pool(mp.cpu_count())
 
-		mpInput = [(clusterIds2nodeIds[clusterId], helperG) for clusterId in list(clusterIds2nodeIds.keys())]
+		mpInput = [(clusterIds2nodeIds[clusterId], helperG, clusterId) for clusterId in list(clusterIds2nodeIds.keys())]
 
 		results = pool.map(self.computeClusteringEdges, mpInput)
+
+		updatedPartitions = {}
 
 		for result in results:
 			edges += result[0]
 			weights += result[1]
+			updatedPartitions.update(result[2])
 
 		print('Edges after augumentation ' + str(len(edges)))
 			
@@ -165,10 +206,16 @@ class ArxivAuthorsCommunityExpansion():
 		self.g.add_edges(edges)
 		self.g.es['weight'] = weights
 
-		for nodeId in [node.index for node in helperG.vs]:
-			self.g.vs[nodeId]['partitionId'] = helperG.vs[nodeId]['partitionId']
+		for finalNode in self.g.vs:
+			self.g.vs[finalNode.index]['partitionId'] = updatedPartitions[finalNode.index] \
+															if finalNode.index in updatedPartitions \
+															else helperG.vs[finalNode.index]['partitionId']
 
 		self.partition = VertexClustering(self.g, self.g.vs['partitionId'])
+
+		plot(self.g)
+
+		plot(self.partition)
 
 	def evaluateGraph(self):
 

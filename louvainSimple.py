@@ -31,7 +31,8 @@ class ArxivAuthorsLouvain():
 		weights = []
 		for c in cursor:
 			for author in c["authors"]:
-				vertices.append(author)
+				if (author not in vertices):
+					vertices.append(author)
 
 			for pair in combinations(c["authors"], 2):
 				ind = edges.index(pair) if pair in edges else -1
