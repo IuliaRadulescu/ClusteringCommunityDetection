@@ -61,7 +61,6 @@ class ArxivAuthorsCommunityExpansion():
 		partitions2nodes = {k: v for k, v in sorted(partitions2nodes.items(), key = lambda item: len(item[1]))}
 		partitions2nodes = {k: v for k, v in sorted(partitions2nodes.items(), key = lambda item: item[0])}
 
-		updatedPartitions = {}
 
 		# filter partitions
 		# only partitions which contain all nodes from this cluster
@@ -74,7 +73,6 @@ class ArxivAuthorsCommunityExpansion():
 				continue
 			legitPartitions[partitionId] = partitions2nodes[partitionId]
 
-		oldModularity = helperG.modularity(helperG.vs['partitionId'], weights = helperG.es['weight'])
 		
 		# inter partitions
 		'''
@@ -82,43 +80,60 @@ class ArxivAuthorsCommunityExpansion():
 		which belong to the same cluster (determined by clustering the articles using the Spherical K-Means algorithm)
 		We only keep the partition unions which maximize the modularity
 		'''
-		for partitionId1 in list(legitPartitions):
 
-			if (partitionId1 not in legitPartitions):
-				continue
+		updatedPartitions = {}
+		isChange = True;
 
+		while (isChange == True):
 
-			for partitionId2 in list(legitPartitions):
-				
-				if (partitionId1 < partitionId2 and partitionId2 in legitPartitions):
+			isChange = False
 
-					# merge partitions
-					for nodeId in legitPartitions[partitionId2]:
-						helperG.vs[nodeId]['partitionId'] = partitionId1
-						updatedPartitions[nodeId] = partitionId1
+			maxPartition1 = None
+			maxPartition2 = None
 
-					nodeId1 = legitPartitions[partitionId1][randint(0, len(legitPartitions[partitionId1]) - 1)]
-					nodeId2 = legitPartitions[partitionId2][randint(0, len(legitPartitions[partitionId2]) - 1)]
+			maxClusteringEdges = []
 
-					candidateEdges = [] # the edges resulting by uniting nodes in the same cluster, from different partitions
-					# not all candidate edges make it into the final configuration
+			maxModularity = helperG.modularity(helperG.vs['partitionId'], weights = helperG.es['weight'])
+
+			for partitionId1 in list(legitPartitions):
+
+				if (partitionId1 not in legitPartitions):
+					continue
+
+				for partitionId2 in list(legitPartitions):
 					
-					candidateEdges.append((helperG.vs[nodeId1]['name'], helperG.vs[nodeId2]['name']))
-					helperG.add_edge(helperG.vs[nodeId1]['name'], helperG.vs[nodeId2]['name'], weight = 1)
+					if (partitionId1 < partitionId2 and partitionId2 in legitPartitions):
 
-					newModularity = helperG.modularity(helperG.vs['partitionId'], weights = helperG.es['weight'])
+						# merge partitions
+						for nodeId in legitPartitions[partitionId2]:
+							helperG.vs[nodeId]['partitionId'] = partitionId1
 
-					if (newModularity > oldModularity):
-						legitPartitions[partitionId1] += legitPartitions[partitionId2]
-						del legitPartitions[partitionId2]
-						oldModularity = newModularity
-						clusteringEdges += candidateEdges
-					else:
-						helperG.delete_edges(candidateEdges)
+						nodeId1 = legitPartitions[partitionId1][randint(0, len(legitPartitions[partitionId1]) - 1)]
+						nodeId2 = legitPartitions[partitionId2][randint(0, len(legitPartitions[partitionId2]) - 1)]
+
+						helperG.add_edge(helperG.vs[nodeId1]['name'], helperG.vs[nodeId2]['name'], weight = 1)
+
+						newModularity = helperG.modularity(helperG.vs['partitionId'], weights = helperG.es['weight'])
+
+						if (newModularity > maxModularity):
+							maxModularity = newModularity
+							maxClusteringEdges = [(helperG.vs[nodeId1]['name'], helperG.vs[nodeId2]['name'])]
+							maxPartition1 = partitionId1
+							maxPartition2 = partitionId2
+
+						helperG.delete_edges((helperG.vs[nodeId1]['name'], helperG.vs[nodeId2]['name']))
 						# UNmerge partitions
 						for nodeId in legitPartitions[partitionId2]:
 							helperG.vs[nodeId]['partitionId'] = partitionId2
-							del updatedPartitions[nodeId]
+
+			if (maxPartition1 != None and maxPartition2 != None):
+				print('MAX MOD = ', maxModularity)
+				isChange = True
+				clusteringEdges += maxClusteringEdges
+				for nodeId in legitPartitions[maxPartition2]:
+					updatedPartitions[nodeId] = maxPartition1
+				legitPartitions[maxPartition1] += legitPartitions[maxPartition2]
+				del legitPartitions[maxPartition2]
 
 
 		# print('CLUSTER ID ', clusterId, updatedPartitions)
