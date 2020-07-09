@@ -15,7 +15,7 @@ clusterCategories = [
 	'q-fin.EC'
 ]
 
-batchSize = [10, 100]
+batchSize = [10, 50]
 datasetName = ['TR_', 'TE_']
 
 # batchSize = [10]
@@ -47,11 +47,13 @@ for d in range(0, len(batchSize)):
 
 				print(pos)
 
-				category = clusterCategories[k]
+				categoryId = k
 				
 				# if dataset TR, pick a cluster category at random and extract batchsize articles
 				if (datasetName[j] == 'TR_'):
-					category = clusterCategories[random.randint(0, len(clusterCategories)-1)]
+					categoryId = random.randint(0, len(clusterCategories)-1)
+
+				category = clusterCategories[categoryId]
 				
 				with libreq.urlopen('http://export.arxiv.org/api/query?search_query=cat:'+ category +'&sortBy=submittedDate&sortOrder=descending&max_results=' + str(batchSize[d]) + '&start=' + str(start[clusterCategories[k]]) + '&max_results=' + str(batchSize[d])) as url:
 					
@@ -92,7 +94,7 @@ for d in range(0, len(batchSize)):
 						
 						documentList.append(document)
 
-				start[clusterCategories[k]] += batchSize[d] # get next n articles for the same category
+				start[clusterCategories[categoryId]] += batchSize[d] # get next n articles for the same category
 
 		documents.insert_many(documentList)
 

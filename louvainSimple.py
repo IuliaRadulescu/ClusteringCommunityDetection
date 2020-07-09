@@ -24,12 +24,19 @@ class ArxivAuthorsLouvain():
 		db = client[self.dbName]
 		documents = db[self.dataset]
 
-		cursor = documents.find({},{"authors": 1})
+		cursor = documents.find({},{'authors': 1, 'title':1})
+
+		existingTitles = []
 
 		vertices = []
 		edges = []
 		weights = []
 		for c in cursor:
+			if c['title'] in existingTitles:
+				continue
+			else:
+				existingTitles.append(c['title'])
+
 			for author in c["authors"]:
 				if (author not in vertices):
 					vertices.append(author)
@@ -58,7 +65,22 @@ class ArxivAuthorsLouvain():
 
 
 print("100 per batch")
-arxivAuthorsEvaluationTE_100 = ArxivAuthorsLouvain('TE_100', 'ArxivCommunityDetectionDatasets')
-arxivAuthorsEvaluationTE_100.buildGraph()
-arxivAuthorsEvaluationTE_100.evaluateGraph()
+arxivAuthorsEvaluation = ArxivAuthorsLouvain('TE_100', 'ArxivCommunityDetectionDatasets')
+arxivAuthorsEvaluation.buildGraph()
+arxivAuthorsEvaluation.evaluateGraph()
+
+print("100 per batch RANDOM")
+arxivAuthorsEvaluation = ArxivAuthorsLouvain('TR_100', 'ArxivCommunityDetectionDatasets')
+arxivAuthorsEvaluation.buildGraph()
+arxivAuthorsEvaluation.evaluateGraph()
+
+print("1000 per batch")
+arxivAuthorsEvaluation = ArxivAuthorsLouvain('TE_500', 'ArxivCommunityDetectionDatasets')
+arxivAuthorsEvaluation.buildGraph()
+arxivAuthorsEvaluation.evaluateGraph()
+
+print("1000 per batch RANDOM")
+arxivAuthorsEvaluation = ArxivAuthorsLouvain('TR_500', 'ArxivCommunityDetectionDatasets')
+arxivAuthorsEvaluation.buildGraph()
+arxivAuthorsEvaluation.evaluateGraph()
 

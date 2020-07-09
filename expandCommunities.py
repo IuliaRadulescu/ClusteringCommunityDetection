@@ -43,17 +43,17 @@ class ArxivAuthorsCommunityExpansion():
 		We augument the intra partition edges by uniting the nodes
 		which belong to the same cluster (determined by clustering the articles using the Spherical K-Means algorithm)
 		'''
-		for partitionId in partitions2nodes:
+		# for partitionId in partitions2nodes:
 			
-			nodesSameClusterPerPartition = list(set([author['nodeId'] for author in authorsInSameCluster]) & set(partitions2nodes[partitionId]))
+		# 	nodesSameClusterPerPartition = list(set([author['nodeId'] for author in authorsInSameCluster]) & set(partitions2nodes[partitionId]))
 
-			if (len(nodesSameClusterPerPartition) > 1):
-				for pair in combinations(nodesSameClusterPerPartition, 2):
-					if ((pair[0], pair[1]) not in edges and (pair[1], pair[0]) not in edges):
-						clusteringEdges.append((helperG.vs[pair[0]]['name'], helperG.vs[pair[1]]['name']))
+		# 	if (len(nodesSameClusterPerPartition) > 1):
+		# 		for pair in combinations(nodesSameClusterPerPartition, 2):
+		# 			if ((pair[0], pair[1]) not in edges and (pair[1], pair[0]) not in edges):
+		# 				clusteringEdges.append((helperG.vs[pair[0]]['name'], helperG.vs[pair[1]]['name']))
 
-		helperG.add_edges(clusteringEdges)
-		helperG.es[len(edges):]['weight'] = [1] * len(clusteringEdges)
+		# helperG.add_edges(clusteringEdges)
+		# helperG.es[len(edges):]['weight'] = [1] * len(clusteringEdges)
 
 		edges = [edge.tuple for edge in helperG.es]
 
@@ -134,6 +134,7 @@ class ArxivAuthorsCommunityExpansion():
 				for edge in maxClusteringEdges:
 					helperG.add_edge(edge[0], edge[1], weight = 1)
 				for nodeId in legitPartitions[maxPartition2]:
+					helperG.vs[nodeId]['partitionId'] = partitionId1
 					updatedPartitions[nodeId] = maxPartition1
 				legitPartitions[maxPartition1] += legitPartitions[maxPartition2]
 				del legitPartitions[maxPartition2]
@@ -156,7 +157,7 @@ class ArxivAuthorsCommunityExpansion():
 		db = client[self.dbName]
 		documents = db[self.dataset]
 
-		cursor = documents.find({},{'authors': 1, 'clusterId': 1}).limit(100)
+		cursor = documents.find({},{'authors': 1, 'clusterId': 1})
 
 		vertices = []
 		edges = []

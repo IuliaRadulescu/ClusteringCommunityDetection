@@ -111,7 +111,7 @@ class ArxivAuthorsEvaluation():
 			internalEdgesNr = internalEdgesAndExternalEdgesNr[pindex][1]
 			externalEdgesNr = internalEdgesAndExternalEdgesNr[pindex][2]
 
-			conductances[pindex] = externalEdgesNr / (2 * internalEdgesNr + externalEdgesNr)
+			conductances[pindex] = externalEdgesNr / (2 * internalEdgesNr + externalEdgesNr) if (2 * internalEdgesNr + externalEdgesNr) > 0 else 0
 
 		avgConductance = sum(conductances.values())/len(conductances)
 
