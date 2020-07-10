@@ -114,7 +114,7 @@ class ArxivAuthorsClustering:
 		skm = spherical_kmeans.SphericalKMeans(n_clusters=5, init='k-means++', n_init=20)
 		skmLabels = skm.fit(X).labels_.tolist()
 
-		# self.writeClusters2DB(skmLabels)
+		self.writeClusters2DB(skmLabels)
 
 		# self.printClusters(skmLabels)
 
@@ -177,7 +177,7 @@ class ArxivAuthorsClustering:
 		client.close()
 
 
-arxivAuthorsClustering = ArxivAuthorsClustering('TE_100', 'ArxivCommunityDetectionDatasets')
+arxivAuthorsClustering = ArxivAuthorsClustering('TE_500', 'ArxivCommunityDetectionDatasets')
 arxivAuthorsClustering.readInformationFromDataset()
 arxivAuthorsClustering.preprocessSummaries()
 arxivAuthorsClustering.clusterSummaries(True)

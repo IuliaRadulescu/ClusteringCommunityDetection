@@ -38,29 +38,8 @@ class ArxivAuthorsCommunityExpansion():
 			partitions2nodes[node['partitionId']].append(node.index)
 			nodeIds2clusters[node.index] = node['clusterId']
 
-		# intra partitions augumented edges
-		'''
-		We augument the intra partition edges by uniting the nodes
-		which belong to the same cluster (determined by clustering the articles using the Spherical K-Means algorithm)
-		'''
-		# for partitionId in partitions2nodes:
-			
-		# 	nodesSameClusterPerPartition = list(set([author['nodeId'] for author in authorsInSameCluster]) & set(partitions2nodes[partitionId]))
-
-		# 	if (len(nodesSameClusterPerPartition) > 1):
-		# 		for pair in combinations(nodesSameClusterPerPartition, 2):
-		# 			if ((pair[0], pair[1]) not in edges and (pair[1], pair[0]) not in edges):
-		# 				clusteringEdges.append((helperG.vs[pair[0]]['name'], helperG.vs[pair[1]]['name']))
-
-		# helperG.add_edges(clusteringEdges)
-		# helperG.es[len(edges):]['weight'] = [1] * len(clusteringEdges)
-
-		edges = [edge.tuple for edge in helperG.es]
-
 		# sort the partition dictionary ascending by size
-		partitions2nodes = {k: v for k, v in sorted(partitions2nodes.items(), key = lambda item: len(item[1]))}
-		partitions2nodes = {k: v for k, v in sorted(partitions2nodes.items(), key = lambda item: item[0])}
-
+		partitions2nodes = {k: v for k, v in sorted(partitions2nodes.items(), key = lambda item: len(item[1]), reverse = True)}
 
 		# filter partitions
 		# only partitions which contain all nodes from this cluster
@@ -86,59 +65,51 @@ class ArxivAuthorsCommunityExpansion():
 
 		maxModularity = helperG.modularity(helperG.vs['partitionId'], weights = helperG.es['weight'])
 
-		while (isChange == True):
+		print('Pornesc de la ', maxModularity)
 
-			isChange = False
+		for partitionId1 in list(legitPartitions):
 
-			maxPartition1 = None
-			maxPartition2 = None
+			if (partitionId1 not in legitPartitions):
+				continue
 
-			maxClusteringEdges = []
+			for partitionId2 in list(legitPartitions):
+				
+				if (partitionId1 != partitionId2 and partitionId2 in legitPartitions):
 
-			for partitionId1 in list(legitPartitions):
+					unionEdges = []
+					edges = [edge.tuple for edge in helperG.es]
+					oldUpdatedPartitons = updatedPartitions
 
-				if (partitionId1 not in legitPartitions):
-					continue
+					# merge partitions
+					for nodeId in legitPartitions[partitionId2]:
+						helperG.vs[nodeId]['partitionId'] = partitionId1
+						updatedPartitions[nodeId] = partitionId1
 
-				for partitionId2 in list(legitPartitions):
+					for nodeId1 in legitPartitions[partitionId1]:
+						for nodeId2 in legitPartitions[partitionId2]:
+							if (helperG.vs[nodeId1]['name'], helperG.vs[nodeId2]['name'] not in clusteringEdges and \
+								helperG.vs[nodeId2]['name'], helperG.vs[nodeId1]['name'] not in clusteringEdges):
+									clusteringEdges.append((helperG.vs[nodeId1]['name'], helperG.vs[nodeId2]['name']))
+									unionEdges.append((helperG.vs[nodeId1]['name'], helperG.vs[nodeId2]['name']))
 					
-					if (partitionId1 < partitionId2 and partitionId2 in legitPartitions):
+					helperG.add_edges(unionEdges)
+					helperG.es[len(edges):]['weight'] = [1] * len(unionEdges)
 
-						# merge partitions
-						for nodeId in legitPartitions[partitionId2]:
-							helperG.vs[nodeId]['partitionId'] = partitionId1
+					newModularity = helperG.modularity(helperG.vs['partitionId'], weights = helperG.es['weight'])
 
-						nodeId1 = legitPartitions[partitionId1][randint(0, len(legitPartitions[partitionId1]) - 1)]
-						nodeId2 = legitPartitions[partitionId2][randint(0, len(legitPartitions[partitionId2]) - 1)]
-
-						helperG.add_edge(helperG.vs[nodeId1]['name'], helperG.vs[nodeId2]['name'], weight = 1)
-
-						newModularity = helperG.modularity(helperG.vs['partitionId'], weights = helperG.es['weight'])
-
-						if (newModularity > maxModularity):
-							maxModularity = newModularity
-							maxClusteringEdges = [(helperG.vs[nodeId1]['name'], helperG.vs[nodeId2]['name'])]
-							maxPartition1 = partitionId1
-							maxPartition2 = partitionId2
-
-						helperG.delete_edges([(helperG.vs[nodeId1]['name'], helperG.vs[nodeId2]['name'])])
-						
+					if (newModularity >= maxModularity):
+						# print('Unesc ', len(legitPartitions[partitionId1]), ' cu ', len(legitPartitions[partitionId2]))
+						# print('NEW MODULARITY', newModularity)
+						maxModularity = newModularity
+						legitPartitions[partitionId1] += legitPartitions[partitionId2]
+						del legitPartitions[partitionId2]
+					else:
+						helperG.delete_edges(unionEdges)
+						clusteringEdges = list(set(clusteringEdges) - set(unionEdges))
 						# UNmerge partitions
 						for nodeId in legitPartitions[partitionId2]:
 							helperG.vs[nodeId]['partitionId'] = partitionId2
-
-			if (maxPartition1 != None and maxPartition2 != None):
-				print('MAX MOD = ', maxModularity)
-				isChange = True
-				clusteringEdges += maxClusteringEdges
-				for edge in maxClusteringEdges:
-					helperG.add_edge(edge[0], edge[1], weight = 1)
-				for nodeId in legitPartitions[maxPartition2]:
-					helperG.vs[nodeId]['partitionId'] = partitionId1
-					updatedPartitions[nodeId] = maxPartition1
-				legitPartitions[maxPartition1] += legitPartitions[maxPartition2]
-				del legitPartitions[maxPartition2]
-
+							updatedPartitions[nodeId] = partitionId2
 
 		# print('CLUSTER ID ', clusterId, updatedPartitions)
 
@@ -232,9 +203,9 @@ class ArxivAuthorsCommunityExpansion():
 
 		self.partition = VertexClustering(self.g, self.g.vs['partitionId'])
 
-		plot(self.g)
+		# plot(self.g)
 
-		plot(self.partition)
+		# plot(self.partition)
 
 	def evaluateGraph(self):
 
@@ -246,8 +217,12 @@ class ArxivAuthorsCommunityExpansion():
 		evaluationLib.computeConductance()
 				
 
-print('100 per batch')
+# print('100 per batch')
+# arxivAuthorsEvaluationTE_100 = ArxivAuthorsCommunityExpansion('TE_100', 'ArxivCommunityDetectionDatasets')
+# arxivAuthorsEvaluationTE_100.buildGraph()
+# arxivAuthorsEvaluationTE_100.evaluateGraph()
 
-arxivAuthorsEvaluationTE_100 = ArxivAuthorsCommunityExpansion('TE_100', 'ArxivCommunityDetectionDatasets')
+print('2500 per batch RANDOM')
+arxivAuthorsEvaluationTE_100 = ArxivAuthorsCommunityExpansion('TR_500', 'ArxivCommunityDetectionDatasets')
 arxivAuthorsEvaluationTE_100.buildGraph()
 arxivAuthorsEvaluationTE_100.evaluateGraph()
