@@ -177,7 +177,7 @@ class ArxivAuthorsClustering:
 		client.close()
 
 
-arxivAuthorsClustering = ArxivAuthorsClustering('TE_500', 'ArxivCommunityDetectionDatasets')
+arxivAuthorsClustering = ArxivAuthorsClustering('TR_500', 'ArxivCommunityDetectionDatasets')
 arxivAuthorsClustering.readInformationFromDataset()
 arxivAuthorsClustering.preprocessSummaries()
 arxivAuthorsClustering.clusterSummaries(True)

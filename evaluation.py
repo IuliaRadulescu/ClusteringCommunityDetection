@@ -5,6 +5,7 @@ from itertools import combinations
 import louvain
 import collections
 import matplotlib.pyplot as plt
+import statistics
 
 class ArxivAuthorsEvaluation():
 
@@ -67,6 +68,7 @@ class ArxivAuthorsEvaluation():
 			'ylabel': 'Internal density'})
 
 		print("The average internal density is {}".format(avgInternalDensity))
+		print('Internal density stdv', statistics.stdev(internalDensities.values()))
 
 	def computeAvgerageDegree(self):
 
@@ -86,6 +88,7 @@ class ArxivAuthorsEvaluation():
 			'ylabel': 'Average degree'})
 
 		print("The average internal degree is {}".format(avgAvgerageDegrees))
+		print('Average degree stdv', statistics.stdev(avgerageDegrees.values()))
 
 	def computeExpansion(self):
 
@@ -119,7 +122,21 @@ class ArxivAuthorsEvaluation():
 
 	def printGraph(self, datasetEvaluation, datasetSpecifics):
 
-		plt.title(datasetSpecifics['title'])
+		title = datasetSpecifics['title']
+
+		if (title == 'TE_100'):
+			title = 'set_500'
+
+		if (title == 'TR_100'):
+			title = 'set_500R'
+
+		if (title == 'TE_500'):
+			title = 'set_2500'
+
+		if (title == 'TR_500'):
+			title = 'set_2500R'
+
+		plt.title(title)
 		plt.xlabel('Community id')
 		plt.ylabel(datasetSpecifics['ylabel'])
 

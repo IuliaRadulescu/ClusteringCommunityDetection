@@ -98,8 +98,6 @@ class ArxivAuthorsCommunityExpansion():
 					newModularity = helperG.modularity(helperG.vs['partitionId'], weights = helperG.es['weight'])
 
 					if (newModularity >= maxModularity):
-						# print('Unesc ', len(legitPartitions[partitionId1]), ' cu ', len(legitPartitions[partitionId2]))
-						# print('NEW MODULARITY', newModularity)
 						maxModularity = newModularity
 						legitPartitions[partitionId1] += legitPartitions[partitionId2]
 						del legitPartitions[partitionId2]
@@ -110,8 +108,6 @@ class ArxivAuthorsCommunityExpansion():
 						for nodeId in legitPartitions[partitionId2]:
 							helperG.vs[nodeId]['partitionId'] = partitionId2
 							updatedPartitions[nodeId] = partitionId2
-
-		# print('CLUSTER ID ', clusterId, updatedPartitions)
 
 		clusteringWeights = [1] * (len(clusteringEdges) - 1) 
 
